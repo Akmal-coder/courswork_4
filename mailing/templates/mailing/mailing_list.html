@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Список рассылок</title>
+    <style>
+        body { font-family: Arial; max-width: 1200px; margin: 40px auto; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; }
+        .btn { padding: 10px 15px; background: #4CAF50; color: white; text-decoration: none; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:hover { background-color: #f5f5f5; }
+        .actions a { margin-right: 10px; color: #2196F3; }
+        .status-active { color: #4CAF50; font-weight: bold; }
+        .status-inactive { color: #f44336; }
+        .status-completed { color: #2196F3; }
+        .owner-info { font-size: 0.9em; color: #666; margin-top: 5px; }
+        .manager-badge { background: #ff9800; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em; margin-left: 5px; }
+        .access-badge { background: #e0e0e0; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; }
+        .client-count { font-weight: bold; color: #2196F3; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📧 Список рассылок</h1>
+        <a href="{% url 'mailing_create' %}" class="btn">➕ Создать рассылку</a>
+    </div>
+
+    <!-- Информация о правах -->
+    <div style="margin: 10px 0; padding: 10px; background: #f0f8ff; border-radius: 4px; font-size: 0.9em;">
+        {% if user.groups.all.0.name == 'Менеджеры' or user.is_superuser %}
+            <span class="manager-badge">⚡ Менеджер</span> Вы видите все рассылки системы
+        {% else %}
+            Вы видите только свои рассылки
+        {% endif %}
+        <div style="margin-top: 5px; font-size: 0.85em;">
+            📊 Всего рассылок: {{ mailings|length }}
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Название</th>
+                <th>Сообщение</th>
+                <th>Клиенты</th>
+                <th>Статус</th>
+                <th>Периодичность</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for mailing in mailings %}
+            <tr>
+                <td>
+                    <strong>{{ mailing.name }}</strong>
+                    <div class="owner-info">
+                        {% if mailing.owner == user %}
+                            <span class="access-badge">Ваша рассылка</span>
+                        {% elif user.groups.all.0.name == 'Менеджеры' or user.is_superuser %}
+                            Владелец: {{ mailing.owner.username }}
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    {{ mailing.message.subject }}
+                    <div class="owner-info" style="font-size: 0.85em;">
+                        {% if mailing.message.owner == user %}
+                            <em>Ваше сообщение</em>
+                        {% elif mailing.message.owner != mailing.owner %}
+                            Сообщение: {{ mailing.message.owner.username }}
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    <span class="client-count">{{ mailing.clients.count }}</span> клиентов
+                    <div class="owner-info" style="font-size: 0.85em;">
+                        {% if mailing.clients.all.0.owner != user %}
+                            <em>клиенты других пользователей</em>
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    {% if mailing.status == 'created' %}
+                        <span class="status-inactive">Создана</span>
+                    {% elif mailing.status == 'started' %}
+                        <span class="status-active">Запущена</span>
+                    {% elif mailing.status == 'completed' %}
+                        <span class="status-completed">Завершена</span>
+                    {% endif %}
+                </td>
+                <td>{{ mailing.get_frequency_display }}</td>
+                <td class="actions">
+                    <a href="{% url 'mailing_detail' mailing.pk %}">👁️ Просмотр</a>
+
+                    <!-- ПРОВЕРКА ПРАВ: только владелец или менеджер может редактировать/удалять -->
+                    {% if mailing.owner == user or user.groups.all.0.name == 'Менеджеры' or user.is_superuser %}
+                        <a href="{% url 'mailing_update' mailing.pk %}">✏️ Редактировать</a>
+                        <a href="{% url 'mailing_delete' mailing.pk %}" style="color: #f44336;">🗑️ Удалить</a>
+
+                        <!-- Дополнительные действия для менеджеров -->
+                        {% if user.groups.all.0.name == 'Менеджеры' or user.is_superuser %}
+                            {% if mailing.owner != user %}
+                                <div style="margin-top: 5px; font-size: 0.8em; color: #666;">
+                                    <em>Управление от имени {{ mailing.owner.username }}</em>
+                                </div>
+                            {% endif %}
+                        {% endif %}
+                    {% else %}
+                        <span style="color: #999; font-size: 0.9em;">Только просмотр</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center;">Рассылок пока нет</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="margin-top: 20px;">
+        <a href="{% url 'home' %}">← На главную</a> |
+        <a href="{% url 'client_list' %}">📋 К списку клиентов</a> |
+        <a href="{% url 'message_list' %}">📨 К списку сообщений</a>
+    </div>
+</body>
+</html>

@@ -58,6 +58,7 @@
             color: white;
             text-decoration: none;
             border-radius: 4px;
+            margin-bottom: 10px;
         }
         .nav-links a:hover {
             background: #45a049;
@@ -104,6 +105,30 @@
             color: #666;
             text-align: center;
         }
+        .profile-btn {
+            background: #9C27B0;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 4px;
+            text-decoration: none;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        .user-groups {
+            background: #e3f2fd;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-left: 10px;
+        }
+        .manager-badge {
+            background: #ff9800;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
@@ -144,7 +169,8 @@
                 <!-- Эти ссылки видны только авторизованным -->
                 <a href="{% url 'client_list' %}">👤 Клиенты</a>
                 <a href="{% url 'message_list' %}">📨 Сообщения</a>
-                <a href="/admin/mailing/mailing/add/">📧 Создать рассылку</a>
+                <a href="{% url 'mailing_list' %}">📧 Рассылки</a>
+                <a href="{% url 'mailing_create' %}">➕ Создать рассылку</a>
             {% else %}
                 <!-- Для неавторизованных показываем пояснение -->
                 <span class="restricted-message">
@@ -157,13 +183,32 @@
             {% if user.is_authenticated %}
                 <span>Вы вошли как: <strong>{{ user.username }}</strong></span>
 
-                <!-- ФОРМА ДЛЯ ВЫХОДА (правильный способ) -->
+                {% if user.groups.all %}
+                    <span class="user-groups">
+                        Группы:
+                        {% for group in user.groups.all %}
+                            {{ group.name }}{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    </span>
+                {% endif %}
+
+                {% if user.is_superuser %}
+                    <span class="manager-badge">👑 Админ</span>
+                {% elif user.groups.all.0.name == 'Менеджеры' %}
+                    <span class="manager-badge">⚡ Менеджер</span>
+                {% endif %}
+
+                <!-- Ссылка на профиль -->
+                <a href="{% url 'profile' %}" class="profile-btn">👤 Профиль</a>
+
+                <!-- ФОРМА ДЛЯ ВЫХОДА -->
                 <form method="post" action="{% url 'logout' %}" class="logout-form">
                     {% csrf_token %}
                     <button type="submit" class="logout-btn">🚪 Выйти</button>
                 </form>
             {% else %}
                 <a href="{% url 'login' %}" class="login-btn">🔐 Войти</a>
+                <a href="{% url 'profile' %}" class="profile-btn">👤 Регистрация</a>
             {% endif %}
         </div>
     </div>

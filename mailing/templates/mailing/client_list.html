@@ -12,12 +12,23 @@
         th { background-color: #f2f2f2; }
         tr:hover { background-color: #f5f5f5; }
         .actions a { margin-right: 10px; color: #2196F3; }
+        .owner-info { font-size: 0.9em; color: #666; margin-top: 5px; }
+        .manager-badge { background: #ff9800; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em; margin-left: 5px; }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>📋 Список клиентов</h1>
         <a href="{% url 'client_create' %}" class="btn">➕ Добавить клиента</a>
+    </div>
+
+    <!-- Информация о правах -->
+    <div style="margin: 10px 0; padding: 10px; background: #f0f8ff; border-radius: 4px; font-size: 0.9em;">
+        {% if user.groups.all.0.name == 'Менеджеры' or user.is_superuser %}
+            <span class="manager-badge">⚡ Менеджер</span> Вы видите всех клиентов системы
+        {% else %}
+            Вы видите только своих клиентов
+        {% endif %}
     </div>
 
     <table>
@@ -32,13 +43,28 @@
         <tbody>
             {% for client in clients %}
             <tr>
-                <td>{{ client.full_name }}</td>
+                <td>
+                    {{ client.full_name }}
+                    <div class="owner-info">
+                        {% if client.owner == user %}
+                            <em>Ваш клиент</em>
+                        {% elif user.groups.all.0.name == 'Менеджеры' or user.is_superuser %}
+                            Владелец: {{ client.owner.username }}
+                        {% endif %}
+                    </div>
+                </td>
                 <td>{{ client.email }}</td>
                 <td>{{ client.comment|truncatechars:50 }}</td>
                 <td class="actions">
                     <a href="{% url 'client_detail' client.pk %}">👁️ Просмотр</a>
-                    <a href="{% url 'client_update' client.pk %}">✏️ Редактировать</a>
-                    <a href="{% url 'client_delete' client.pk %}" style="color: #f44336;">🗑️ Удалить</a>
+
+                    <!-- ПРОВЕРКА ПРАВ: только владелец или менеджер может редактировать/удалять -->
+                    {% if client.owner == user or user.groups.all.0.name == 'Менеджеры' or user.is_superuser %}
+                        <a href="{% url 'client_update' client.pk %}">✏️ Редактировать</a>
+                        <a href="{% url 'client_delete' client.pk %}" style="color: #f44336;">🗑️ Удалить</a>
+                    {% else %}
+                        <span style="color: #999; font-size: 0.9em;">Только просмотр</span>
+                    {% endif %}
                 </td>
             </tr>
             {% empty %}

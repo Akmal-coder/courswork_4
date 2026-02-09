@@ -6,7 +6,19 @@ from django.core.cache import cache
 from django.core.mail import send_mail
 from django.contrib import messages
 from .models import Client, Message, Mailing, MailingAttempt
-from .forms import ClientForm, MessageForm
+from .forms import ClientForm, MessageForm, MailingForm
+from django.core.exceptions import PermissionDenied
+
+
+def manager_required(view_func):
+    """Декоратор для проверки, что пользователь менеджер"""
+
+    def wrapper(request, *args, **kwargs):
+        if request.user.groups.filter(name='Менеджеры').exists() or request.user.is_superuser:
+            return view_func(request, *args, **kwargs)
+        raise PermissionDenied
+
+    return wrapper
 
 
 def home(request):
@@ -34,28 +46,40 @@ def home(request):
     return render(request, 'mailing/home.html', context)
 
 
-# Клиенты
+# КЛИЕНТЫ
 @login_required
 def client_list(request):
-    clients = Client.objects.all().order_by('full_name')
+    """Список клиентов: менеджеры видят всех, пользователи - только своих"""
+    if request.user.groups.filter(name='Менеджеры').exists() or request.user.is_superuser:
+        clients = Client.objects.all().order_by('full_name')  # Менеджеры видят всех
+    else:
+        clients = Client.objects.filter(owner=request.user).order_by('full_name')  # Пользователи - только своих
+
     return render(request, 'mailing/client_list.html', {'clients': clients})
 
 
 @login_required
 def client_detail(request, pk):
-    client = get_object_or_404(Client, pk=pk)
+    """Детальная информация о клиенте"""
+    if request.user.groups.filter(name='Менеджеры').exists() or request.user.is_superuser:
+        client = get_object_or_404(Client, pk=pk)  # Менеджеры видят всех
+    else:
+        client = get_object_or_404(Client, pk=pk, owner=request.user)  # Пользователи - только своих
+
     return render(request, 'mailing/client_detail.html', {'client': client})
 
 
 @login_required
 def client_create(request):
+    """Создание нового клиента"""
     if request.method == 'POST':
-        form = ClientForm(request.POST)
+        form = ClientForm(request.POST, user=request.user)
         if form.is_valid():
             form.save()
             return redirect('client_list')
     else:
-        form = ClientForm()
+        form = ClientForm(user=request.user)
+
     return render(request, 'mailing/client_form.html', {
         'form': form,
         'title': 'Создание нового клиента'
@@ -64,14 +88,20 @@ def client_create(request):
 
 @login_required
 def client_update(request, pk):
-    client = get_object_or_404(Client, pk=pk)
+    """Редактирование клиента (только своего для пользователей)"""
+    if request.user.groups.filter(name='Менеджеры').exists() or request.user.is_superuser:
+        client = get_object_or_404(Client, pk=pk)  # Менеджеры могут редактировать всех
+    else:
+        client = get_object_or_404(Client, pk=pk, owner=request.user)  # Пользователи - только своих
+
     if request.method == 'POST':
-        form = ClientForm(request.POST, instance=client)
+        form = ClientForm(request.POST, instance=client, user=request.user)
         if form.is_valid():
             form.save()
             return redirect('client_detail', pk=client.pk)
     else:
-        form = ClientForm(instance=client)
+        form = ClientForm(instance=client, user=request.user)
+
     return render(request, 'mailing/client_form.html', {
         'form': form,
         'title': f'Редактирование клиента: {client.full_name}'
@@ -80,35 +110,53 @@ def client_update(request, pk):
 
 @login_required
 def client_delete(request, pk):
-    client = get_object_or_404(Client, pk=pk)
+    """Удаление клиента (только своего для пользователей)"""
+    if request.user.groups.filter(name='Менеджеры').exists() or request.user.is_superuser:
+        client = get_object_or_404(Client, pk=pk)  # Менеджеры могут удалять всех
+    else:
+        client = get_object_or_404(Client, pk=pk, owner=request.user)  # Пользователи - только своих
+
     if request.method == 'POST':
         client.delete()
         return redirect('client_list')
+
     return render(request, 'mailing/client_confirm_delete.html', {'client': client})
 
 
-# Сообщения
+# СООБЩЕНИЯ
 @login_required
 def message_list(request):
-    messages = Message.objects.all().order_by('subject')
+    """Список сообщений: менеджеры видят все, пользователи - только свои"""
+    if request.user.groups.filter(name='Менеджеры').exists() or request.user.is_superuser:
+        messages = Message.objects.all().order_by('subject')  # Менеджеры видят все
+    else:
+        messages = Message.objects.filter(owner=request.user).order_by('subject')  # Пользователи - только своих
+
     return render(request, 'mailing/message_list.html', {'messages': messages})
 
 
 @login_required
 def message_detail(request, pk):
-    message = get_object_or_404(Message, pk=pk)
+    """Детальная информация о сообщении"""
+    if request.user.groups.filter(name='Менеджеры').exists() or request.user.is_superuser:
+        message = get_object_or_404(Message, pk=pk)  # Менеджеры видят все
+    else:
+        message = get_object_or_404(Message, pk=pk, owner=request.user)  # Пользователи - только своих
+
     return render(request, 'mailing/message_detail.html', {'message': message})
 
 
 @login_required
 def message_create(request):
+    """Создание нового сообщения"""
     if request.method == 'POST':
-        form = MessageForm(request.POST)
+        form = MessageForm(request.POST, user=request.user)
         if form.is_valid():
             form.save()
             return redirect('message_list')
     else:
-        form = MessageForm()
+        form = MessageForm(user=request.user)
+
     return render(request, 'mailing/message_form.html', {
         'form': form,
         'title': 'Создание нового сообщения'
@@ -117,14 +165,20 @@ def message_create(request):
 
 @login_required
 def message_update(request, pk):
-    message = get_object_or_404(Message, pk=pk)
+    """Редактирование сообщения (только своего для пользователей)"""
+    if request.user.groups.filter(name='Менеджеры').exists() or request.user.is_superuser:
+        message = get_object_or_404(Message, pk=pk)  # Менеджеры могут редактировать все
+    else:
+        message = get_object_or_404(Message, pk=pk, owner=request.user)  # Пользователи - только своих
+
     if request.method == 'POST':
-        form = MessageForm(request.POST, instance=message)
+        form = MessageForm(request.POST, instance=message, user=request.user)
         if form.is_valid():
             form.save()
             return redirect('message_detail', pk=message.pk)
     else:
-        form = MessageForm(instance=message)
+        form = MessageForm(instance=message, user=request.user)
+
     return render(request, 'mailing/message_form.html', {
         'form': form,
         'title': f'Редактирование сообщения: {message.subject}'
@@ -133,19 +187,104 @@ def message_update(request, pk):
 
 @login_required
 def message_delete(request, pk):
-    message = get_object_or_404(Message, pk=pk)
+    """Удаление сообщения (только своего для пользователей)"""
+    if request.user.groups.filter(name='Менеджеры').exists() or request.user.is_superuser:
+        message = get_object_or_404(Message, pk=pk)  # Менеджеры могут удалять все
+    else:
+        message = get_object_or_404(Message, pk=pk, owner=request.user)  # Пользователи - только своих
+
     if request.method == 'POST':
         message.delete()
         return redirect('message_list')
+
     return render(request, 'mailing/message_confirm_delete.html', {'message': message})
 
 
-# Отправка рассылки
+# РАССЫЛКИ
+@login_required
+def mailing_list(request):
+    """Список рассылок: менеджеры видят все, пользователи - только свои"""
+    if request.user.groups.filter(name='Менеджеры').exists() or request.user.is_superuser:
+        mailings = Mailing.objects.all().order_by('-start_time')  # Менеджеры видят все
+    else:
+        mailings = Mailing.objects.filter(owner=request.user).order_by('-start_time')  # Пользователи - только своих
+
+    return render(request, 'mailing/mailing_list.html', {'mailings': mailings})
+
+
+@login_required
+def mailing_detail(request, pk):
+    """Детальная информация о рассылке"""
+    if request.user.groups.filter(name='Менеджеры').exists() or request.user.is_superuser:
+        mailing = get_object_or_404(Mailing, pk=pk)  # Менеджеры видят все
+    else:
+        mailing = get_object_or_404(Mailing, pk=pk, owner=request.user)  # Пользователи - только своих
+
+    return render(request, 'mailing/mailing_detail.html', {'mailing': mailing})
+
+
+@login_required
+def mailing_create(request):
+    """Создание новой рассылки"""
+    if request.method == 'POST':
+        form = MailingForm(request.POST, user=request.user)
+        if form.is_valid():
+            form.save()
+            return redirect('mailing_list')
+    else:
+        form = MailingForm(user=request.user)
+
+    return render(request, 'mailing/mailing_form.html', {
+        'form': form,
+        'title': 'Создание новой рассылки'
+    })
+
+
+@login_required
+def mailing_update(request, pk):
+    """Редактирование рассылки (только своей для пользователей)"""
+    if request.user.groups.filter(name='Менеджеры').exists() or request.user.is_superuser:
+        mailing = get_object_or_404(Mailing, pk=pk)  # Менеджеры могут редактировать все
+    else:
+        mailing = get_object_or_404(Mailing, pk=pk, owner=request.user)  # Пользователи - только своих
+
+    if request.method == 'POST':
+        form = MailingForm(request.POST, instance=mailing, user=request.user)
+        if form.is_valid():
+            form.save()
+            return redirect('mailing_detail', pk=mailing.pk)
+    else:
+        form = MailingForm(instance=mailing, user=request.user)
+
+    return render(request, 'mailing/mailing_form.html', {
+        'form': form,
+        'title': f'Редактирование рассылки #{mailing.pk}'
+    })
+
+
+@login_required
+def mailing_delete(request, pk):
+    """Удаление рассылки (только своей для пользователей)"""
+    if request.user.groups.filter(name='Менеджеры').exists() or request.user.is_superuser:
+        mailing = get_object_or_404(Mailing, pk=pk)  # Менеджеры могут удалять все
+    else:
+        mailing = get_object_or_404(Mailing, pk=pk, owner=request.user)  # Пользователи - только своих
+
+    if request.method == 'POST':
+        mailing.delete()
+        return redirect('mailing_list')
+
+    return render(request, 'mailing/mailing_confirm_delete.html', {'mailing': mailing})
+
+
+# ОТПРАВКА РАССЫЛКИ
 @login_required
 def send_mailing_now(request, pk):
     """Ручной запуск рассылки"""
-    mailing = get_object_or_404(Mailing, pk=pk)
-
+    if request.user.groups.filter(name='Менеджеры').exists() or request.user.is_superuser:
+        mailing = get_object_or_404(Mailing, pk=pk)  # Менеджеры могут запускать все
+    else:
+        mailing = get_object_or_404(Mailing, pk=pk, owner=request.user)  # Пользователи - только свои
 
     now = timezone.now()
     if mailing.start_time <= now <= mailing.end_time:
@@ -193,10 +332,10 @@ def send_mailing_now(request, pk):
             '❌ Рассылка не может быть запущена: время рассылки неактивно'
         )
 
-    return redirect('admin:mailing_mailing_changelist')
+    return redirect('mailing_list')
 
 
-# Обработка ошибок
+# ОБРАБОТКА ОШИБОК
 def custom_permission_denied(request, exception=None):
     """Кастомная страница для ошибки 403 (доступ запрещен)"""
     return render(request, 'mailing/access_denied.html', status=403)

@@ -1,8 +1,7 @@
 from django import forms
-from .models import Client, Message, Mailing
-from django import forms
-from .models import Client, Message, Mailing
 from django.core.exceptions import ValidationError
+from django.utils import timezone
+from .models import Client, Message, Mailing
 
 
 class ClientForm(forms.ModelForm):
@@ -30,54 +29,10 @@ class ClientForm(forms.ModelForm):
             'comment': 'Комментарий',
         }
 
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
 
-class MessageForm(forms.ModelForm):
-    class Meta:
-        model = Message
-        fields = ['subject', 'body']
-        widgets = {
-            'subject': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Тема письма'
-            }),
-            'body': forms.Textarea(attrs={
-                'class': 'form-control',
-                'placeholder': 'Текст письма',
-                'rows': 5
-            }),
-        }
-        labels = {
-            'subject': 'Тема письма',
-            'body': 'Текст письма',
-        }
-
-
-class ClientForm(forms.ModelForm):
-    class Meta:
-        model = Client
-        fields = ['email', 'full_name', 'comment']
-        widgets = {
-            'email': forms.EmailInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'example@mail.com'
-            }),
-            'full_name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Иванов Иван Иванович'
-            }),
-            'comment': forms.Textarea(attrs={
-                'class': 'form-control',
-                'placeholder': 'Дополнительная информация',
-                'rows': 3
-            }),
-        }
-        labels = {
-            'email': 'Email адрес',
-            'full_name': 'ФИО',
-            'comment': 'Комментарий',
-        }
-
-    # ДОБАВЛЯЕМ ПРОВЕРКУ EMAIL
     def clean_email(self):
         email = self.cleaned_data['email']
         # Проверяем, есть ли уже клиент с таким email (кроме текущего)
@@ -89,6 +44,14 @@ class ClientForm(forms.ModelForm):
                 raise ValidationError('Клиент с таким email уже существует')
         return email
 
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.user:
+            instance.owner = self.user
+        if commit:
+            instance.save()
+        return instance
+
 
 class MessageForm(forms.ModelForm):
     class Meta:
@@ -110,12 +73,23 @@ class MessageForm(forms.ModelForm):
             'body': 'Текст письма',
         }
 
-    # ДОБАВЛЯЕМ ПРОВЕРКУ ТЕМЫ
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
     def clean_subject(self):
         subject = self.cleaned_data['subject']
         if len(subject) < 5:
             raise ValidationError('Тема письма должна быть не менее 5 символов')
         return subject
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.user:
+            instance.owner = self.user
+        if commit:
+            instance.save()
+        return instance
 
 
 class MailingForm(forms.ModelForm):
@@ -141,7 +115,15 @@ class MailingForm(forms.ModelForm):
             'clients': 'Получатели (клиенты)',
         }
 
-    # ПРОВЕРКА ДАТ
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+        # Фильтруем сообщения и клиентов только текущего пользователя
+        if self.user:
+            self.fields['message'].queryset = Message.objects.filter(owner=self.user)
+            self.fields['clients'].queryset = Client.objects.filter(owner=self.user)
+
     def clean(self):
         cleaned_data = super().clean()
         start_time = cleaned_data.get('start_time')
@@ -151,9 +133,16 @@ class MailingForm(forms.ModelForm):
             if start_time >= end_time:
                 raise ValidationError('Время начала должно быть раньше времени окончания')
 
-            # Проверка, что начало не в прошлом
-            from django.utils import timezone
             if start_time < timezone.now():
                 raise ValidationError('Время начала не может быть в прошлом')
 
         return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.user:
+            instance.owner = self.user
+        if commit:
+            instance.save()
+            self.save_m2m()  # Важно для ManyToMany поля clients
+        return instance

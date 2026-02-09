@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Вход в систему</title>
+    <style>
+        body { font-family: Arial; max-width: 400px; margin: 50px auto; padding: 20px; }
+        .login-form { background: #f9f9f9; padding: 25px; border-radius: 5px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 10px 15px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .error { color: #f44336; background: #ffebee; padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <h1>🔐 Вход в систему</h1>
+
+    <div class="login-form">
+        {% if form.errors %}
+        <div class="error">
+            Неправильное имя пользователя или пароль.
+        </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="id_username">Имя пользователя:</label>
+                {{ form.username }}
+            </div>
+
+            <div class="form-group">
+                <label for="id_password">Пароль:</label>
+                {{ form.password }}
+            </div>
+
+            <button type="submit">Войти</button>
+        </form>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <a href="{% url 'home' %}">← На главную</a>
+    </div>
+</body>
+</html>

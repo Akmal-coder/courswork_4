@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>
+        {% if object %}
+            Редактировать рассылку
+        {% else %}
+            Создать рассылку
+        {% endif %}
+    </title>
+    <style>
+        body { font-family: Arial; max-width: 800px; margin: 40px auto; padding: 20px; }
+        .form-container { background: #f9f9f9; padding: 20px; border-radius: 8px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; }
+        input[type="text"], input[type="email"], textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        textarea { min-height: 100px; }
+        .btn {
+            padding: 12px 20px;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn-cancel {
+            background: #f44336;
+            margin-left: 10px;
+        }
+        .btn:hover { opacity: 0.9; }
+        .help-text { color: #666; font-size: 0.9em; margin-top: 5px; }
+        .error { color: #f44336; font-size: 0.9em; margin-top: 5px; }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px; }
+        .checkbox-item { display: flex; align-items: center; }
+        .checkbox-item input { margin-right: 8px; }
+    </style>
+</head>
+<body>
+    <h1>
+        {% if object %}
+            ✏️ Редактировать рассылку
+        {% else %}
+            📧 Создать рассылку
+        {% endif %}
+    </h1>
+
+    <!-- Информация о правах -->
+    {% if user.groups.all.0.name == 'Менеджеры' or user.is_superuser %}
+        <div style="margin: 10px 0; padding: 10px; background: #fff3cd; border-radius: 4px; font-size: 0.9em;">
+            ⚡ <strong>Режим менеджера:</strong> Вы можете создавать рассылки для любых пользователей
+        </div>
+    {% endif %}
+
+    <div class="form-container">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="id_name">Название рассылки *</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                    <div class="error">{{ form.name.errors }}</div>
+                {% endif %}
+                <div class="help-text">Придумайте понятное название для рассылки</div>
+            </div>
+
+            <div class="form-group">
+                <label for="id_message">Сообщение *</label>
+                {{ form.message }}
+                {% if form.message.errors %}
+                    <div class="error">{{ form.message.errors }}</div>
+                {% endif %}
+                <div class="help-text">Выберите сообщение из списка</div>
+            </div>
+
+            <div class="form-group">
+                <label>Клиенты *</label>
+                <div class="help-text">Выберите одного или нескольких клиентов</div>
+                <div class="checkbox-group">
+                    {{ form.clients }}
+                </div>
+                {% if form.clients.errors %}
+                    <div class="error">{{ form.clients.errors }}</div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="id_frequency">Периодичность *</label>
+                {{ form.frequency }}
+                {% if form.frequency.errors %}
+                    <div class="error">{{ form.frequency.errors }}</div>
+                {% endif %}
+                <div class="help-text">Как часто отправлять рассылку</div>
+            </div>
+
+            <div class="form-group">
+                <label for="id_status">Статус</label>
+                {{ form.status }}
+                {% if form.status.errors %}
+                    <div class="error">{{ form.status.errors }}</div>
+                {% endif %}
+                <div class="help-text">"Запущена" - рассылка будет отправляться по расписанию</div>
+            </div>
+
+            <!-- Скрытое поле владельца (автоматически заполняется) -->
+            {% if not object %}
+                {% if user.groups.all.0.name == 'Менеджеры' or user.is_superuser %}
+                <div class="form-group">
+                    <label for="id_owner">Владелец (для менеджеров)</label>
+                    {{ form.owner }}
+                    <div class="help-text">Менеджеры могут выбрать владельца рассылки</div>
+                </div>
+                {% else %}
+                    <input type="hidden" name="owner" value="{{ user.id }}">
+                {% endif %}
+            {% endif %}
+
+            <div style="margin-top: 30px; display: flex; gap: 10px;">
+                <button type="submit" class="btn">
+                    {% if object %}
+                        Сохранить изменения
+                    {% else %}
+                        Создать рассылку
+                    {% endif %}
+                </button>
+                <a href="{% url 'mailing_list' %}" class="btn btn-cancel">Отмена</a>
+            </div>
+        </form>
+    </div>
+
+    <div style="margin-top: 30px;">
+        <a href="{% url 'mailing_list' %}">← Назад к списку рассылок</a> |
+        <a href="{% url 'home' %}">На главную</a>
+    </div>
+
+    <script>
+        // Автоматическое форматирование чекбоксов
+        document.addEventListener('DOMContentLoaded', function() {
+            const clientsDiv = document.querySelector('#id_clients');
+            if (clientsDiv) {
+                const checkboxes = clientsDiv.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach((checkbox, index) => {
+                    const label = document.createElement('label');
+                    label.className = 'checkbox-item';
+                    label.appendChild(checkbox);
+
+                    const text = document.createElement('span');
+                    text.textContent = checkbox.nextSibling.textContent;
+                    label.appendChild(text);
+
+                    checkbox.style.marginRight = '8px';
+                    clientsDiv.appendChild(label);
+                    clientsDiv.appendChild(document.createElement('br'));
+                });
+            }
+        });
+    </script>
+</body>
+</html>

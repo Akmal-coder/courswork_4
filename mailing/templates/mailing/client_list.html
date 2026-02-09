@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Список клиентов</title>
+    <style>
+        body { font-family: Arial; max-width: 1000px; margin: 40px auto; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; }
+        .btn { padding: 10px 15px; background: #4CAF50; color: white; text-decoration: none; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:hover { background-color: #f5f5f5; }
+        .actions a { margin-right: 10px; color: #2196F3; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📋 Список клиентов</h1>
+        <a href="{% url 'client_create' %}" class="btn">➕ Добавить клиента</a>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ФИО</th>
+                <th>Email</th>
+                <th>Комментарий</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for client in clients %}
+            <tr>
+                <td>{{ client.full_name }}</td>
+                <td>{{ client.email }}</td>
+                <td>{{ client.comment|truncatechars:50 }}</td>
+                <td class="actions">
+                    <a href="{% url 'client_detail' client.pk %}">👁️ Просмотр</a>
+                    <a href="{% url 'client_update' client.pk %}">✏️ Редактировать</a>
+                    <a href="{% url 'client_delete' client.pk %}" style="color: #f44336;">🗑️ Удалить</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center;">Клиентов пока нет</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="margin-top: 20px;">
+        <a href="{% url 'home' %}">← На главную</a>
+    </div>
+</body>
+</html>

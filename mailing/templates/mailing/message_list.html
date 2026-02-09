@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Список сообщений</title>
+    <style>
+        body { font-family: Arial; max-width: 1000px; margin: 40px auto; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; }
+        .btn { padding: 10px 15px; background: #4CAF50; color: white; text-decoration: none; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:hover { background-color: #f5f5f5; }
+        .actions a { margin-right: 10px; color: #2196F3; }
+        .message-preview { max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📨 Список сообщений</h1>
+        <a href="{% url 'message_create' %}" class="btn">➕ Создать сообщение</a>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Тема письма</th>
+                <th>Текст письма (превью)</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for message in messages %}
+            <tr>
+                <td><strong>{{ message.subject }}</strong></td>
+                <td class="message-preview">{{ message.body|truncatechars:100 }}</td>
+                <td class="actions">
+                    <a href="{% url 'message_detail' message.pk %}">👁️ Просмотр</a>
+                    <a href="{% url 'message_update' message.pk %}">✏️ Редактировать</a>
+                    <a href="{% url 'message_delete' message.pk %}" style="color: #f44336;">🗑️ Удалить</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" style="text-align: center;">Сообщений пока нет</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="margin-top: 20px;">
+        <a href="{% url 'home' %}">← На главную</a> |
+        <a href="{% url 'client_list' %}">📋 К списку клиентов</a>
+    </div>
+</body>
+</html>

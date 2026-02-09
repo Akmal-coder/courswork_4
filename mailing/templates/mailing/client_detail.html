@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Клиент: {{ client.full_name }}</title>
+    <style>
+        body { font-family: Arial; max-width: 600px; margin: 40px auto; padding: 20px; }
+        .client-info { background: #f9f9f9; padding: 20px; border-radius: 5px; }
+        .field { margin-bottom: 15px; }
+        .label { font-weight: bold; color: #555; }
+        .value { margin-top: 5px; }
+        .actions { margin-top: 20px; }
+        .btn { padding: 10px 15px; margin-right: 10px; text-decoration: none; border-radius: 4px; }
+        .btn-edit { background: #2196F3; color: white; }
+        .btn-delete { background: #f44336; color: white; }
+        .btn-back { background: #757575; color: white; }
+    </style>
+</head>
+<body>
+    <h1>👤 Клиент: {{ client.full_name }}</h1>
+
+    <div class="client-info">
+        <div class="field">
+            <div class="label">ФИО:</div>
+            <div class="value">{{ client.full_name }}</div>
+        </div>
+
+        <div class="field">
+            <div class="label">Email:</div>
+            <div class="value">{{ client.email }}</div>
+        </div>
+
+        <div class="field">
+            <div class="label">Комментарий:</div>
+            <div class="value">
+                {% if client.comment %}
+                    {{ client.comment|linebreaks }}
+                {% else %}
+                    <em>Комментарий отсутствует</em>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="actions">
+        <a href="{% url 'client_update' client.pk %}" class="btn btn-edit">✏️ Редактировать</a>
+        <a href="{% url 'client_delete' client.pk %}" class="btn btn-delete">🗑️ Удалить</a>
+        <a href="{% url 'client_list' %}" class="btn btn-back">← Назад к списку</a>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <a href="{% url 'home' %}">← На главную</a>
+    </div>
+</body>
+</html>
